@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 #include "types.h"
-#include "tables.h"
+#include "encoder_tables.h"
 
 size_t encode_frame(const int16* input, int8* output, size_t framelen) {
   const int16* source   = input;
@@ -24,10 +24,10 @@ size_t encode_frame(const int16* input, int8* output, size_t framelen) {
     best_factor = amp_factors[index];
 
     printf(
-      "\tMax sample:%4d (%0.6f) gave index %d (%0.6f), Normalized Max:%d\n",
+      "\tMax 14-bit:%4d (ideal %0.6f) AUDxVOL:%d (scale: %0.6f), Normalized 8-bit:%d\n",
       (int)max14bit,
       ideal_factor,
-      index,
+      index + 1,
       best_factor,
       (int)(max14bit * best_factor)
     );
@@ -36,10 +36,10 @@ size_t encode_frame(const int16* input, int8* output, size_t framelen) {
     num       = framelen;
     *output++ = (uint8)index + 1;
     while (num--) {
-      *output++ = ((int)((float32)(*source++) * best_factor) >> 6);
+      *output++ = ((int)((float32)(*source++ >> 2) * best_factor) >> 6);
     }
 
-    return framelen;
+    return framelen+1;
   } else {
     puts("\tEncoded silent frame.");
     *output++ = 0;
@@ -65,7 +65,7 @@ int main(int argc, const char** argv) {
           samples_read = fread(input_frame, sizeof(int16), FRAME_SIZE, input);
           if (samples_read > 0) {
             size_t encoded_size;
-            printf("Read frame %d [%d]\n", frame_number++, (int)samples_read);
+            printf("Read frame %d [%d] - ", frame_number++, (int)samples_read);
             encoded_size = encode_frame(input_frame, output_frame, samples_read);
             fwrite(output_frame, sizeof(int8), encoded_size, output);
           }
@@ -74,7 +74,7 @@ int main(int argc, const char** argv) {
       }
       fclose(input);
     }
-  } 
+  }
 
   return 0;
 }

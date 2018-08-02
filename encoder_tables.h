@@ -1,5 +1,5 @@
-#ifndef __PAULA_HDR_TABLES__
-#define __PAULA_HDR_TABLES__
+#ifndef __PAULA_HDR_ENCODER_TABLES__
+#define __PAULA_HDR_ENCODER_TABLES__
 
 
 /**
