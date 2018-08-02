@@ -34,7 +34,7 @@ size_t encode_frame(const int16* input, int8* output, size_t framelen) {
 
     source    = input;
     num       = framelen;
-    *output++ = (uint8)index + 1;
+    *output++ = index + 1;
     while (num--) {
       *output++ = ((int)((float32)(*source++ >> 2) * best_factor) >> 6);
     }

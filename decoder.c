@@ -28,7 +28,7 @@ int main(int argc, const char** argv) {
             bytes_read = sizeof(input_frame);
             printf("Frame %d AUDxVOL 0\n", frame);
           } else {
-            float32 attenuation = (volume_index + 1)/64.0f;
+            float32 attenuation = volume_index * 0.015626f; // 1/64.0
             int i;
             bytes_read = fread(input_frame, sizeof(int8), FRAME_SIZE, input);
             printf("Frame %d AUDxVOL %d: %.7f\n", frame, volume_index, attenuation);
