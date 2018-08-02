@@ -11,10 +11,11 @@ size_t encode_frame(const int16* input, int8* output, size_t framelen) {
     int16 sample14bit = (*source++) >> 2;
     int16 abs14bit    = sample14bit < 0        ? -sample14bit : sample14bit;
     max14bit          = abs14bit    > max14bit ?  abs14bit    : max14bit;
+    max14bit          = max14bit    > 8191     ?  8191        : max14bit;
   }
 
   if (max14bit) {
-    float32 ideal_factor = 8192.0 / (float32)max14bit;
+    float32 ideal_factor = 8191.0 / (float32)max14bit;
     float32 best_factor  = 0;
     int     index        = 0;
     while (ideal_factor < amp_factors[index]) {
@@ -23,13 +24,16 @@ size_t encode_frame(const int16* input, int8* output, size_t framelen) {
 
     best_factor = amp_factors[index];
 
+    int sample8 = (int)(max14bit * best_factor) >> 6;
+
     printf(
-      "\tMax 14-bit:%4d (ideal %0.6f) AUDxVOL:%d (scale: %0.6f), Normalized 8-bit:%d\n",
+      "\tMax 14-bit:%4d (ideal %0.6f) AUDxVOL:%d (scale: %0.6f), 8-bit:%d, replay: %d\n",
       (int)max14bit,
       ideal_factor,
       index + 1,
       best_factor,
-      (int)(max14bit * best_factor)
+      sample8,
+      (int)((sample8 << 6) / best_factor)
     );
 
     source    = input;
