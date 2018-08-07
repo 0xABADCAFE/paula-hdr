@@ -48,7 +48,7 @@ class PCMStream {
       INT_8   = 1,
       INT_16  = 2,
     } Format;
-    virtual         ~PCMStream()     = 0;
+    virtual         ~PCMStream() { }
     virtual Format  format() const   = 0;
     virtual uint32  channels() const = 0;
     virtual float64 rate() const     = 0;
@@ -64,25 +64,58 @@ class PCMOutput : public PCMStream {
     virtual size_t write(size_t count, void* destination) = 0;
 };
 
-template<PCMStream::Format F, uint32 C, uint32 R> class RawPCMInput : public PCMInput {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//  RawStaticPCMInput
+//
+//  A pure template realisation of PCMInput for totally raw data with an assumed format,
+//
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<PCMStream::Format F, uint32 C, uint32 R> class RawStaticPCMInput : public PCMInput {
 
   private:
     static const size_t wordSize = F*C;
     std::FILE* stream;
 
   public:
-    ~RawPCMInput() { }
+    RawStaticPCMInput() : stream(0) {
+    }
+
+    ~RawStaticPCMInput() {
+      close();
+    }
+
+    void close() {
+      if (stream) {
+        std::fclose(stream);
+        stream = 0;
+        std::printf("Closed stream\n");
+      }
+    }
+
+    bool open(const char* source) {
+      close();
+      stream = std::fopen(source, "rb");
+      if (stream) {
+        std::printf("Opened stream %s\n", source);
+      } else {
+        std::printf("Failed opening stream %s\n", source);
+      }
+      return stream != 0;
+    }
 
     Format  format() const   { return F; }
     uint32  channels() const { return C; }
     float64 rate() const     { return R; }
 
     size_t read(void* destination, size_t count) {
+      if (stream) {
+        return std::fread(destination, wordSize, count, stream);
+      }
       return 0;
     }
 };
-
-typedef RawPCMInput<PCMStream::INT_16, 1, 44100> PCMSource;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -94,7 +127,15 @@ int main(int argc, const char **argv) {
   const char* to   = params.get("-t");
 
   if (from && to) {
-    printf("From: %s To: %s\n", from, to);
+    std::printf("From: %s To: %s\n", from, to);
+
+    RawStaticPCMInput<PCMStream::INT_16, 1, 44100> source;
+
+    source.open(from);
   }
+
+
+
+
   return 0;
 }
