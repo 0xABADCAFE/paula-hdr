@@ -16,6 +16,7 @@ class PCMStream {
       INT_8   = 1,
       INT_16  = 2,
     } Format;
+
     virtual         ~PCMStream()     { }
     virtual Format  format() const   = 0;
     virtual uint32  channels() const = 0;
@@ -38,7 +39,7 @@ class PCMOutput : public PCMStream {
 //
 //  RawStaticPCMInput
 //
-//  A pure template realisation of PCMInput for totally raw data with an assumed format,
+//  A pure template realisation of PCMInput for totally raw data with an assumed format.
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

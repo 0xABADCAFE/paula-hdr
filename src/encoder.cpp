@@ -3,6 +3,7 @@
 #include "include/pcmstream.hpp"
 #include <cstdio>
 
+typedef RawStaticPCMInput<PCMStream::INT_16, 1, 44100> RawAudioInput;
 
 int main(int argc, const char **argv) {
 
@@ -13,11 +14,8 @@ int main(int argc, const char **argv) {
 
   if (from && to) {
     std::printf("From: %s To: %s\n", from, to);
-
-    RawStaticPCMInput<PCMStream::INT_16, 1, 44100> source;
-
+    RawAudioInput source;
     source.open(from);
-
   }
 
   return 0;
