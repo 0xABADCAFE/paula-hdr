@@ -1,3 +1,5 @@
 bin/*
+src/bin/*
+src/obj/*
 encode_log.txt
 decode_log.txt

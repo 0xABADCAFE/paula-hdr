@@ -1,43 +1,8 @@
-#include "types.h"
-#include <cstring>
+#ifndef __PAULA_HDR_PCMSTREAM__
+#define __PAULA_HDR_PCMSTREAM__
+
+#include "types.hpp"
 #include <cstdio>
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//  CLIParameters
-//
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class CLIParameters {
-  private:
-    int          argCount;
-    const char** argList;
-
-  public:
-    CLIParameters(int argCount, const char** argList) : argCount(argCount - 1), argList(argList + 1) { }
-
-    bool has(const char* name) const;
-    const char* get(const char* name, const char* def = 0) const ;
-};
-
-const char* CLIParameters::get(const char* name, const char* def) const {
-  int argMax = argCount - 1;
-  for (int i = 0; i < argMax; i++) {
-    if (i < argCount && !strcmp(name, argList[i])) {
-      return argList[i + 1];
-    }
-  }
-  return def;
-}
-
-bool CLIParameters::has(const char* name) const {
-  for (int i = 0; i < argCount; i++) {
-    if (!strcmp(name, argList[i])) {
-      return true;
-    }
-  }
-  return false;
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -51,7 +16,7 @@ class PCMStream {
       INT_8   = 1,
       INT_16  = 2,
     } Format;
-    virtual         ~PCMStream() { }
+    virtual         ~PCMStream()     { }
     virtual Format  format() const   = 0;
     virtual uint32  channels() const = 0;
     virtual float64 rate() const     = 0;
@@ -122,25 +87,5 @@ template<PCMStream::Format F, uint32 C, uint32 R> class RawStaticPCMInput : publ
     }
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#endif
 
-
-
-int main(int argc, const char **argv) {
-
-  CLIParameters params(argc, argv);
-
-  const char* from = params.get("-f");
-  const char* to   = params.get("-t");
-
-  if (from && to) {
-    std::printf("From: %s To: %s\n", from, to);
-
-    RawStaticPCMInput<PCMStream::INT_16, 1, 44100> source;
-
-    source.open(from);
-
-  }
-
-  return 0;
-}
