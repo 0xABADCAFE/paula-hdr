@@ -16,25 +16,28 @@ class CLIParameters {
   public:
     CLIParameters(int argCount, const char** argList) : argCount(argCount - 1), argList(argList + 1) { }
 
-    const char* get(const char* name, const char* def = 0) const {
-      int argMax = argCount - 1;
-      for (int i = 0; i < argMax; i++) {
-        if (i < argCount && !strcmp(name, argList[i])) {
-          return argList[i + 1];
-        }
-      }
-      return def;
-    }
-
-    bool has(const char* name) const {
-      for (int i = 0; i < argCount; i++) {
-        if (!strcmp(name, argList[i])) {
-          return true;
-        }
-      }
-      return false;
-    }
+    bool has(const char* name) const;
+    const char* get(const char* name, const char* def = 0) const ;
 };
+
+const char* CLIParameters::get(const char* name, const char* def) const {
+  int argMax = argCount - 1;
+  for (int i = 0; i < argMax; i++) {
+    if (i < argCount && !strcmp(name, argList[i])) {
+      return argList[i + 1];
+    }
+  }
+  return def;
+}
+
+bool CLIParameters::has(const char* name) const {
+  for (int i = 0; i < argCount; i++) {
+    if (!strcmp(name, argList[i])) {
+      return true;
+    }
+  }
+  return false;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -52,6 +55,8 @@ class PCMStream {
     virtual Format  format() const   = 0;
     virtual uint32  channels() const = 0;
     virtual float64 rate() const     = 0;
+    virtual bool    open(const char* source) = 0;
+    virtual void    close() = 0;
 };
 
 class PCMInput : public PCMStream {
@@ -119,6 +124,8 @@ template<PCMStream::Format F, uint32 C, uint32 R> class RawStaticPCMInput : publ
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+
 int main(int argc, const char **argv) {
 
   CLIParameters params(argc, argv);
@@ -132,10 +139,8 @@ int main(int argc, const char **argv) {
     RawStaticPCMInput<PCMStream::INT_16, 1, 44100> source;
 
     source.open(from);
+
   }
-
-
-
 
   return 0;
 }
