@@ -27,6 +27,7 @@ class PCMStream {
 
 class PCMInput : public PCMStream {
   public:
+    virtual void start() = 0;
     virtual size_t read(void* destination, size_t count) = 0;
 };
 
@@ -79,6 +80,12 @@ template<PCMStream::Format F, uint32 C, uint32 R> class RawStaticPCMInput : publ
     Format  format() const   { return F; }
     uint32  channels() const { return C; }
     float64 rate() const     { return R; }
+
+    void start() {
+      if (stream) {
+        std::fseek(stream, 0, SEEK_SET);
+      }
+    }
 
     size_t read(void* destination, size_t count) {
       if (stream) {
