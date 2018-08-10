@@ -2,6 +2,7 @@
 #include "include/pcmstream.hpp"
 #include "include/encoder.hpp"
 #include <cstdio>
+#include <cstring>
 
 PaulaHDREncoder::PaulaHDREncoder(size_t reqFrameSize, size_t reqBlockSize) :
   readPCMBuffer(0),
@@ -51,23 +52,39 @@ size_t PaulaHDREncoder::encode(PCMInput* input, std::FILE* output) {
   }
 
   input->start();
-  size_t samplesRead = 0;
-  size_t lastRead    = 0;
-  size_t numFrames   = 0;
-  do {
-    lastRead = input->read(readPCMBuffer, frameSize);
-    if (lastRead > 0) {
-      samplesRead += lastRead;
-      numFrames++;
-    }
-  } while (lastRead == frameSize);
+  size_t
+    samplesRead = 0,
+    lastRead    = 0;
 
-  std::fprintf(stderr, "Total Frames: %d\n", (int)numFrames);
+  do {
+    lastRead = encodeBlock(input, output);
+    samplesRead += lastRead;
+  } while (lastRead == bufferSize);
+
+  std::fprintf(stderr, "Total Samples: %d\n", (int)samplesRead);
 
   return samplesRead;
 }
 
+size_t PaulaHDREncoder::encodeBlock(PCMInput* input, std::FILE* output) {
+  size_t totSamples    = input->read(readPCMBuffer, bufferSize);
+  if (totSamples > 0 ) {
+    // Reset all our buffers
+    writePCMBufferOffset = 0;
+    writeVolBufferOffset = 0;
+    std::memset(writePCMBuffer, 0, bufferSize);
+    std::memset(writeVolBuffer, 0, blockSize);
 
+    size_t totalRemaining = totSamples;
+
+  }
+  return totSamples;
+}
+
+uint8 PaulaHDREncoder::encodeFrame(const int16* input, int8* output, size_t length) {
+
+  return 0;
+}
 
 const float PaulaHDREncoder::defaultVol[64] = {
   64.00000000, 32.00000000, 21.33333333, 16.00000000, 12.80000000, 10.66666667, 9.14285714, 8.00000000,
