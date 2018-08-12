@@ -10,13 +10,14 @@ class PaulaHDREncoder {
     int16*    readPCMBuffer;
     int8*     writePCMBuffer;
     uint8*    writeVolBuffer;
-    size_t    frameSize;
-    size_t    blockSize;
-    size_t    bufferSize;
+    uint32    frameSize;
+    uint32    blockSize;
+    uint32    bufferSize;
 
-    // Offsets into
-    size_t   writePCMBufferOffset;
-    size_t   writeVolBufferOffset;
+    // Offsets into buffers
+    uint32    readPCMBufferOffset;
+    uint32    writePCMBufferOffset;
+    uint32    writeVolBufferOffset;
 
   public:
     enum {
@@ -26,20 +27,20 @@ class PaulaHDREncoder {
       MAX_BLOCKSIZE = 128
     };
 
-    PaulaHDREncoder(size_t frameSize, size_t blockSize);
+    PaulaHDREncoder(uint32 frameSize, uint32 blockSize);
     ~PaulaHDREncoder();
 
-    size_t getFrameSize() const {
+    uint32 getFrameSize() const {
       return frameSize;
     }
 
-    size_t getBlockSize() const {
+    uint32 getBlockSize() const {
       return blockSize;
     }
 
-    size_t encode(PCMInput* input, std::FILE* output);
-    size_t encodeBlock(PCMInput* input, std::FILE* output);
-    uint8  encodeFrame(const int16* input, int8* output, size_t length);
+    uint32 encode(PCMInput* input, std::FILE* output);
+    uint32 encodeBlock(PCMInput* input, std::FILE* output);
+    uint32 encodeFrame(uint32 length);
 };
 
 #endif

@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <cstring>
 
-PaulaHDREncoder::PaulaHDREncoder(size_t reqFrameSize, size_t reqBlockSize) :
+PaulaHDREncoder::PaulaHDREncoder(uint32 reqFrameSize, uint32 reqBlockSize) :
   readPCMBuffer(0),
   writePCMBuffer(0),
   writeVolBuffer(0)
@@ -39,7 +39,7 @@ PaulaHDREncoder::~PaulaHDREncoder() {
   delete[] writeVolBuffer;
 }
 
-size_t PaulaHDREncoder::encode(PCMInput* input, std::FILE* output) {
+uint32 PaulaHDREncoder::encode(PCMInput* input, std::FILE* output) {
 
   if (!input/*|| !output*/) {
     std::fprintf(stderr, "No input stream available\n");
@@ -52,37 +52,140 @@ size_t PaulaHDREncoder::encode(PCMInput* input, std::FILE* output) {
   }
 
   input->start();
-  size_t
+  uint32
     samplesRead = 0,
-    lastRead    = 0;
+    lastRead    = 0,
+    frameBlock  = 0;
 
   do {
     lastRead = encodeBlock(input, output);
     samplesRead += lastRead;
+
+    std::fprintf(stderr, "Frameblock %u has %u entries...\n", frameBlock++, writeVolBuffer);
+
+    for (uint32 i=0; i < writeVolBufferOffset; i++) {
+      if (i&15 == 0) {
+        std::fprintf(stderr, "\n\t");
+      }
+      std::fprintf(stderr, "%3u ", writeVolBuffer[i]);
+    }
+    std::fprintf(stderr, "\n");
   } while (lastRead == bufferSize);
 
-  std::fprintf(stderr, "Total Samples: %d\n", (int)samplesRead);
+  std::fprintf(stderr, "Total Samples: %u\n", samplesRead);
 
   return samplesRead;
 }
 
-size_t PaulaHDREncoder::encodeBlock(PCMInput* input, std::FILE* output) {
-  size_t totSamples    = input->read(readPCMBuffer, bufferSize);
-  if (totSamples > 0 ) {
+uint32 PaulaHDREncoder::encodeBlock(PCMInput* input, std::FILE* output) {
+  uint32 totSamples    = input->read(readPCMBuffer, bufferSize);
+  if (totSamples > 0) {
     // Reset all our buffers
+    readPCMBufferOffset  = 0;
     writePCMBufferOffset = 0;
     writeVolBufferOffset = 0;
     std::memset(writePCMBuffer, 0, bufferSize);
     std::memset(writeVolBuffer, 0, blockSize);
 
-    size_t totalRemaining = totSamples;
+    uint32 numFrames  = totSamples / frameSize;
+    uint32 lastVolume = 255;
+    uint32 lastRun    = 0;
+    for (uint32 i = 0; i < numFrames; i++, totSamples -= frameSize) {
+      uint32 frameVolume = encodeFrame(frameSize);
+
+      // If the frameVolume has changed, we need to cap any existing run length
+      // and record the new valuie
+      if (frameVolume != lastVolume) {
+
+        // We were recording a runlength. Cap it off now.
+        if (lastRun) {
+          writeVolBuffer[writeVolBufferOffset++] = 128|lastRun;
+          lastRun    = 0;
+          lastVolume = frameVolume;
+        }
+        writeVolBuffer[writeVolBufferOffset++] = frameVolume;
+      } else {
+        lastRun++;
+
+        // We can only store run values between upto 127, so if we exceed this, just
+        // cap the current run with the existing volume.
+        if (lastRun > 127) {
+          writeVolBuffer[writeVolBufferOffset++] = 128|lastRun;
+          writeVolBuffer[writeVolBufferOffset++] = lastVolume;
+          lastRun    = 0;
+        }
+      }
+    }
+
+    // Handle a straggling short frame
+    if (totSamples > 0) {
+      uint32 frameVolume = encodeFrame(totSamples);
+    }
+
 
   }
   return totSamples;
 }
 
-uint8 PaulaHDREncoder::encodeFrame(const int16* input, int8* output, size_t length) {
+uint32 PaulaHDREncoder::encodeFrame(uint32 length) {
 
+  int16* input    = readPCMBuffer  + readPCMBufferOffset;
+  int8*  output   = writePCMBuffer + writePCMBufferOffset;
+  uint32 num      = length;
+
+
+  // Identify the largest absolute 14-bit value
+  int16  max14bit = 0;
+  while (num--) {
+    int16 sample14bit = (*input++) >> 2;
+    int16 abs14bit    = sample14bit < 0        ? -sample14bit : sample14bit;
+    max14bit          = abs14bit    > max14bit ?  abs14bit    : max14bit;
+  }
+
+  if (max14bit) {
+    float32 idealNormaliser = 8192.0 / (float32)max14bit;
+    float32 bestNormaliser  = 0;
+    int     normaliserIndex = 0;
+    while (idealNormaliser < defaultVol[normaliserIndex]) {
+      normaliserIndex++;
+    }
+
+    // The lookup table doesn't have an entry for zero (would be infinity) and we handle it
+    // in a different way. Adding 1 onto the normaliserIndex effectively converts it into the
+    // expected Paula AUDxVOL value we will need to replay the frame correctly.
+
+    bestNormaliser = defaultVol[normaliserIndex++];
+    int max8bit    = (int)(max14bit * bestNormaliser) >> 6;
+
+    std::fprintf(
+      stderr,
+      "\tMax 14-bit:%4d (ideal %0.6f) AUDxVOL:%d (scale: %0.6f), 8-bit:%d, replay: %d\n",
+      (int)max14bit,
+      idealNormaliser,
+      normaliserIndex,
+      bestNormaliser,
+      max8bit,
+      (int)((max8bit << 6) / bestNormaliser)
+    );
+
+    // Reset the offsets for encoding the input
+    num   = length;
+    input = readPCMBuffer + readPCMBufferOffset;
+    while (num--) {
+      int scaled8bit = (int)((float32)(*input++ >> 2) * bestNormaliser) >> 6;
+
+      // Perform some range clamping. Although -128 is valid, it results in underflow in decoding
+      *output++ = scaled8bit < -127 ? -127 : scaled8bit > 127 ? 127 : scaled8bit;
+    }
+
+    // Move the buffer positions along
+    readPCMBufferOffset  += length;
+    writePCMBufferOffset += length;
+    return normaliserIndex;
+
+  }
+  // Increment the read buffer position only as a silence frame doesn't use any output PCM space
+  readPCMBufferOffset  += length;
   return 0;
 }
 
