@@ -58,28 +58,33 @@ uint32 PaulaHDREncoder::encode(PCMInput* input, std::FILE* output) {
     frameBlock  = 0;
 
   do {
+    std::fprintf(stderr, "\nEncoding Frameblock %u...\n", frameBlock++);
     lastRead = encodeBlock(input, output);
     samplesRead += lastRead;
 
-    std::fprintf(stderr, "Frameblock %u has %u entries...\n", frameBlock++, writeVolBuffer);
+    std::fprintf(stderr, "\tTotal %u entries for %u samples...\n\t", writeVolBufferOffset, lastRead);
 
     for (uint32 i=0; i < writeVolBufferOffset; i++) {
-      if (i&15 == 0) {
-        std::fprintf(stderr, "\n\t");
-      }
       std::fprintf(stderr, "%3u ", writeVolBuffer[i]);
     }
     std::fprintf(stderr, "\n");
   } while (lastRead == bufferSize);
 
-  std::fprintf(stderr, "Total Samples: %u\n", samplesRead);
+  std::fprintf(stderr, "\nTotal Samples: %u\n", samplesRead);
 
   return samplesRead;
 }
 
 uint32 PaulaHDREncoder::encodeBlock(PCMInput* input, std::FILE* output) {
-  uint32 totSamples    = input->read(readPCMBuffer, bufferSize);
+  uint32 totSamples = input->read(readPCMBuffer, bufferSize);
+  uint32 result     = totSamples;
   if (totSamples > 0) {
+
+    std::fprintf(
+      stderr,
+      "\tPeak 14-bit | Ideal Scale | Volume | Actual Scale | Peak 8-bit | Replay 14-bit\n"
+    );
+
     // Reset all our buffers
     readPCMBufferOffset  = 0;
     writePCMBufferOffset = 0;
@@ -99,32 +104,29 @@ uint32 PaulaHDREncoder::encodeBlock(PCMInput* input, std::FILE* output) {
 
         // We were recording a runlength. Cap it off now.
         if (lastRun) {
-          writeVolBuffer[writeVolBufferOffset++] = 128|lastRun;
+          recordVolRunLength(lastRun);
           lastRun    = 0;
-          lastVolume = frameVolume;
         }
         writeVolBuffer[writeVolBufferOffset++] = frameVolume;
+        lastVolume = frameVolume;
       } else {
         lastRun++;
 
         // We can only store run values between upto 127, so if we exceed this, just
         // cap the current run with the existing volume.
         if (lastRun > 127) {
-          writeVolBuffer[writeVolBufferOffset++] = 128|lastRun;
+          recordVolRunLength(lastRun);
           writeVolBuffer[writeVolBufferOffset++] = lastVolume;
           lastRun    = 0;
         }
       }
     }
 
-    // Handle a straggling short frame
-    if (totSamples > 0) {
-      uint32 frameVolume = encodeFrame(totSamples);
+    if (lastRun) {
+      recordVolRunLength(lastRun);
     }
-
-
   }
-  return totSamples;
+  return result;
 }
 
 uint32 PaulaHDREncoder::encodeFrame(uint32 length) {
@@ -159,7 +161,7 @@ uint32 PaulaHDREncoder::encodeFrame(uint32 length) {
 
     std::fprintf(
       stderr,
-      "\tMax 14-bit:%4d (ideal %0.6f) AUDxVOL:%d (scale: %0.6f), 8-bit:%d, replay: %d\n",
+      "\t%11d | %11.6f | %6d |  %11.6f | %10d | %13d\n",
       (int)max14bit,
       idealNormaliser,
       normaliserIndex,

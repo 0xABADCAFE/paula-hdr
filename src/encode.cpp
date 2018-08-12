@@ -11,7 +11,7 @@ int main(int argc, const char **argv) {
   CLIParameters params(argc, argv);
 
   const char* from = params.get("-f");
-  const char* to   = "<NULL>";//params.get("-t");
+  const char* to   = params.get("-t");
 
   if (from) {
     std::printf("From: %s To: %s\n", from, to);

@@ -39,8 +39,16 @@ class PaulaHDREncoder {
     }
 
     uint32 encode(PCMInput* input, std::FILE* output);
+
+  private:
+
     uint32 encodeBlock(PCMInput* input, std::FILE* output);
     uint32 encodeFrame(uint32 length);
+
+    void recordVolRunLength(uint32 lastRun) {
+      writeVolBuffer[writeVolBufferOffset++] = 128|lastRun;
+    }
+
 };
 
 #endif
