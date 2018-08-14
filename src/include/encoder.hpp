@@ -1,6 +1,8 @@
 #ifndef __PAULA_HDR_ENCODER__
 #define __PAULA_HDR_ENCODER__
 
+#include "paulahdrfile.hpp"
+
 class PaulaHDREncoder {
 
   private:
@@ -20,12 +22,6 @@ class PaulaHDREncoder {
     uint32    writeVolBufferOffset;
 
   public:
-    enum {
-      MIN_FRAMESIZE = 8,
-      MAX_FRAMESIZE = 256,
-      MIN_BLOCKSIZE = 1,
-      MAX_BLOCKSIZE = 128
-    };
 
     PaulaHDREncoder(uint32 frameSize, uint32 blockSize);
     ~PaulaHDREncoder();
@@ -38,11 +34,11 @@ class PaulaHDREncoder {
       return blockSize;
     }
 
-    uint32 encode(PCMInput* input, std::FILE* output);
+    uint32 encode(PCMInput* input, PaulaHDRFileOutput* output);
 
   private:
 
-    uint32 encodeBlock(PCMInput* input, std::FILE* output);
+    uint32 encodeBlock(PCMInput* input, PaulaHDRFileOutput* output);
     uint32 encodeFrame(uint32 length);
 
     void recordVolRunLength(uint32 lastRun) {

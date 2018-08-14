@@ -11,12 +11,12 @@ PaulaHDREncoder::PaulaHDREncoder(uint32 reqFrameSize, uint32 reqBlockSize) :
 {
   // Frame Size must be an even number of samples between MIN_FRAMESIZE and MAX_FRAMESIZE
   frameSize = (reqFrameSize & ~1);
-  frameSize = frameSize < MIN_FRAMESIZE ?
-    MIN_FRAMESIZE : frameSize > MAX_FRAMESIZE ?
-      MAX_FRAMESIZE : frameSize;
-  blockSize = reqBlockSize < MIN_BLOCKSIZE ?
-    MIN_BLOCKSIZE : reqBlockSize > MAX_BLOCKSIZE ?
-      MAX_BLOCKSIZE : reqBlockSize;
+  frameSize = frameSize < PaulaHDRFile::MIN_FRAMESIZE ?
+    PaulaHDRFile::MIN_FRAMESIZE : frameSize > PaulaHDRFile::MAX_FRAMESIZE ?
+      PaulaHDRFile::MAX_FRAMESIZE : frameSize;
+  blockSize = reqBlockSize < PaulaHDRFile::MIN_BLOCKSIZE ?
+    PaulaHDRFile::MIN_BLOCKSIZE : reqBlockSize > PaulaHDRFile::MAX_BLOCKSIZE ?
+      PaulaHDRFile::MAX_BLOCKSIZE : reqBlockSize;
 
   bufferSize     = frameSize * blockSize;
 
@@ -39,10 +39,15 @@ PaulaHDREncoder::~PaulaHDREncoder() {
   delete[] writeVolBuffer;
 }
 
-uint32 PaulaHDREncoder::encode(PCMInput* input, std::FILE* output) {
+uint32 PaulaHDREncoder::encode(PCMInput* input, PaulaHDRFileOutput* output) {
 
-  if (!input/*|| !output*/) {
+  if (!input) {
     std::fprintf(stderr, "No input stream available\n");
+    return 0;
+  }
+
+  if (!output) {
+    std::fprintf(stderr, "No output stream available\n");
     return 0;
   }
 
@@ -68,6 +73,14 @@ uint32 PaulaHDREncoder::encode(PCMInput* input, std::FILE* output) {
       std::fprintf(stderr, "%3u ", writeVolBuffer[i]);
     }
     std::fprintf(stderr, "\n");
+
+    output->writeBlock(
+      writeVolBuffer,
+      writePCMBuffer,
+      writeVolBufferOffset,
+      writePCMBufferOffset
+    );
+
   } while (lastRead == bufferSize);
 
   std::fprintf(stderr, "\nTotal Samples: %u\n", samplesRead);
@@ -75,7 +88,7 @@ uint32 PaulaHDREncoder::encode(PCMInput* input, std::FILE* output) {
   return samplesRead;
 }
 
-uint32 PaulaHDREncoder::encodeBlock(PCMInput* input, std::FILE* output) {
+uint32 PaulaHDREncoder::encodeBlock(PCMInput* input, PaulaHDRFileOutput* output) {
   uint32 totSamples = input->read(readPCMBuffer, bufferSize);
   uint32 result     = totSamples;
   if (totSamples > 0) {

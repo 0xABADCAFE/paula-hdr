@@ -17,12 +17,12 @@ class PCMStream {
       INT_16  = 2,
     } Format;
 
-    virtual         ~PCMStream()     { }
     virtual Format  format() const   = 0;
     virtual uint32  channels() const = 0;
     virtual float64 rate() const     = 0;
     virtual bool    open(const char* source) = 0;
     virtual void    close() = 0;
+    virtual         ~PCMStream() { }
 };
 
 class PCMInput : public PCMStream {
@@ -51,12 +51,7 @@ template<PCMStream::Format F, uint32 C, uint32 R> class RawStaticPCMInput : publ
     std::FILE* stream;
 
   public:
-    RawStaticPCMInput() : stream(0) {
-    }
-
-    ~RawStaticPCMInput() {
-      close();
-    }
+    RawStaticPCMInput() : stream(0) { }
 
     void close() {
       if (stream) {
@@ -92,6 +87,10 @@ template<PCMStream::Format F, uint32 C, uint32 R> class RawStaticPCMInput : publ
         return std::fread(destination, wordSize, count, stream);
       }
       return 0;
+    }
+
+    ~RawStaticPCMInput() {
+      close();
     }
 };
 

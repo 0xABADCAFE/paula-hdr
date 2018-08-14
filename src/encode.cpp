@@ -16,9 +16,19 @@ int main(int argc, const char **argv) {
   if (from) {
     std::printf("From: %s To: %s\n", from, to);
     RawAudioInput source;
+    PaulaHDRFileOutput destination;
     if (source.open(from)) {
-      PaulaHDREncoder encoder(16, 16);
-      encoder.encode(&source, 0);
+      destination.setBlockSize(16);
+      destination.setFrameSize(16);
+      destination.setSampleRate((uint16)source.rate());
+      if (destination.open(to)) {
+        PaulaHDREncoder encoder(destination.getBlockSize(), destination.getFrameSize());
+        encoder.encode(&source, &destination);
+      } else {
+        std::printf("Failed to open destiation file %s\n", to);
+      }
+    } else {
+      std::printf("Failed to open source file %s\n", from);
     }
   }
 

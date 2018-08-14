@@ -2,6 +2,7 @@
 
 OBJ      = obj/$(ARCH)/cliparameters.o \
            obj/$(ARCH)/pcmstream.o \
+           obj/$(ARCH)/paulahdrfile.o \
            obj/$(ARCH)/encoder.o \
            obj/$(ARCH)/encode.o \
 
@@ -12,6 +13,9 @@ obj/$(ARCH)/cliparameters.o: cliparameters.cpp
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
 obj/$(ARCH)/pcmstream.o: pcmstream.cpp
+	$(CXX) $(CXXFLAGS) -o $@ -c $<
+
+obj/$(ARCH)/paulahdrfile.o: paulahdrfile.cpp
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
 
 obj/$(ARCH)/encoder.o: encoder.cpp
