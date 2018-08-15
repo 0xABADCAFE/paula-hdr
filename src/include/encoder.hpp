@@ -38,7 +38,7 @@ class PaulaHDREncoder {
 
   private:
 
-    uint32 encodeBlock(PCMInput* input, PaulaHDRFileOutput* output);
+    uint32 encodeBlock(PCMInput* input);
     uint32 encodeFrame(uint32 length);
 
     void recordVolRunLength(uint32 lastRun) {

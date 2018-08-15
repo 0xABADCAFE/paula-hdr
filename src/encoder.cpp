@@ -64,7 +64,7 @@ uint32 PaulaHDREncoder::encode(PCMInput* input, PaulaHDRFileOutput* output) {
 
   do {
     std::fprintf(stderr, "\nEncoding Frameblock %u...\n", frameBlock++);
-    lastRead = encodeBlock(input, output);
+    lastRead = encodeBlock(input);
     samplesRead += lastRead;
 
     std::fprintf(stderr, "\tTotal %u entries for %u samples...\n\t", writeVolBufferOffset, lastRead);
@@ -88,7 +88,7 @@ uint32 PaulaHDREncoder::encode(PCMInput* input, PaulaHDRFileOutput* output) {
   return samplesRead;
 }
 
-uint32 PaulaHDREncoder::encodeBlock(PCMInput* input, PaulaHDRFileOutput* output) {
+uint32 PaulaHDREncoder::encodeBlock(PCMInput* input) {
   uint32 totSamples = input->read(readPCMBuffer, bufferSize);
   uint32 result     = totSamples;
   if (totSamples > 0) {
