@@ -21,9 +21,11 @@ class PaulaHDREncoder {
     uint32    writePCMBufferOffset;
     uint32    writeVolBufferOffset;
 
+    bool      verbose;
+
   public:
 
-    PaulaHDREncoder(uint32 frameSize, uint32 blockSize);
+    PaulaHDREncoder(uint32 frameSize, uint32 blockSize, bool verbose);
     ~PaulaHDREncoder();
 
     uint32 getFrameSize() const {
@@ -45,6 +47,7 @@ class PaulaHDREncoder {
       writeVolBuffer[writeVolBufferOffset++] = 128|lastRun;
     }
 
+    void deltaEncodeBuffer();
 };
 
 #endif

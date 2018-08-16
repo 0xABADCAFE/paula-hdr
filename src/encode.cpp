@@ -32,7 +32,7 @@ int main(int argc, const char **argv) {
           destination.getFrameSize()
         );
 
-        PaulaHDREncoder encoder(destination.getFrameSize(), destination.getBlockSize());
+        PaulaHDREncoder encoder(destination.getFrameSize(), destination.getBlockSize(), params.has("-v"));
         encoder.encode(&source, &destination);
       } else {
         std::printf("Failed to open destiation file %s\n", to);

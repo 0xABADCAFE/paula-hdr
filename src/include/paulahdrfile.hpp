@@ -21,6 +21,9 @@ class PaulaHDRFile {
       MAX_BLOCKSIZE = 128
     };
 
+    static uint32 clampFrameSize(uint32 frameSize);
+    static uint32 clampBlockSize(uint32 blockSize);
+
     uint32  getSampleRate() const {
       return (uint32)header.sampleRateMSB << 8 | header.sampleRateLSB;
     }
@@ -48,8 +51,8 @@ class PaulaHDRFileOutput : public PaulaHDRFile {
     PaulaHDRFileOutput();
 
     void   setSampleRate(uint16 rate);
-    bool   setBlockSize(uint32 blockSize);
-    bool   setFrameSize(uint32 frameSize);
+    void   setBlockSize(uint32 blockSize);
+    void   setFrameSize(uint32 frameSize);
     size_t writeBlock(uint8* blockData, int8* frameData, uint16 blockDataSize, uint16 frameDataSize);
     bool   open(const char* destination);
     void   close();

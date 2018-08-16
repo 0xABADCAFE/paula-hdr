@@ -1,6 +1,15 @@
 #include "include/types.hpp"
 #include "include/paulahdrfile.hpp"
 
+uint32 PaulaHDRFile::clampFrameSize(uint32 frameSize) {
+  frameSize = (frameSize & ~1);
+  return frameSize < MIN_FRAMESIZE ? MIN_FRAMESIZE : frameSize > MAX_FRAMESIZE ? MAX_FRAMESIZE : frameSize;
+}
+
+uint32 PaulaHDRFile::clampBlockSize(uint32 blockSize) {
+  return blockSize < MIN_BLOCKSIZE ? MIN_BLOCKSIZE : blockSize > MAX_BLOCKSIZE ? MAX_BLOCKSIZE : blockSize;
+}
+
 PaulaHDRFileOutput::PaulaHDRFileOutput() : stream(0) {
   header.magic[0]      = 'P';
   header.magic[1]      = 'H';
@@ -17,20 +26,12 @@ void PaulaHDRFileOutput::setSampleRate(uint16 rate) {
   header.sampleRateLSB = (uint8)(rate & 0xFF);
 }
 
-bool PaulaHDRFileOutput::setBlockSize(uint32 blockSize) {
-  if (blockSize < MIN_BLOCKSIZE || blockSize > MAX_BLOCKSIZE) {
-    return false;
-  }
-  header.blockSize = (uint8)blockSize;
-  return true;
+void PaulaHDRFileOutput::setBlockSize(uint32 blockSize) {
+  header.blockSize = (uint8) clampBlockSize(blockSize);
 }
 
-bool PaulaHDRFileOutput::setFrameSize(uint32 frameSize) {
-  if (frameSize < MIN_FRAMESIZE || frameSize > MAX_FRAMESIZE) {
-    return false;
-  }
-  header.frameSize = (uint8) (frameSize - 1);
-  return true;
+void PaulaHDRFileOutput::setFrameSize(uint32 frameSize) {
+  header.frameSize = (uint8) (clampFrameSize(frameSize) - 1);
 }
 
 size_t PaulaHDRFileOutput::writeBlock(uint8* blockData, int8* frameData, uint16 blockDataSize, uint16 frameDataSize) {

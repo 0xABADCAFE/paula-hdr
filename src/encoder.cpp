@@ -4,55 +4,65 @@
 #include <cstdio>
 #include <cstring>
 
-PaulaHDREncoder::PaulaHDREncoder(uint32 reqFrameSize, uint32 reqBlockSize) :
+/**
+ * Constructor
+ */
+PaulaHDREncoder::PaulaHDREncoder(uint32 reqFrameSize, uint32 reqBlockSize, bool verbose) :
   readPCMBuffer(0),
   writePCMBuffer(0),
-  writeVolBuffer(0)
+  writeVolBuffer(0),
+  verbose(verbose)
 {
-  // Frame Size must be an even number of samples between MIN_FRAMESIZE and MAX_FRAMESIZE
-  frameSize = (reqFrameSize & ~1);
-  frameSize = frameSize < PaulaHDRFile::MIN_FRAMESIZE ?
-    PaulaHDRFile::MIN_FRAMESIZE : frameSize > PaulaHDRFile::MAX_FRAMESIZE ?
-      PaulaHDRFile::MAX_FRAMESIZE : frameSize;
-  blockSize = reqBlockSize < PaulaHDRFile::MIN_BLOCKSIZE ?
-    PaulaHDRFile::MIN_BLOCKSIZE : reqBlockSize > PaulaHDRFile::MAX_BLOCKSIZE ?
-      PaulaHDRFile::MAX_BLOCKSIZE : reqBlockSize;
+  frameSize  = PaulaHDRFile::clampFrameSize(reqFrameSize);
+  blockSize  = PaulaHDRFile::clampBlockSize(reqBlockSize);
+  bufferSize = frameSize * blockSize;
 
-  bufferSize     = frameSize * blockSize;
-
-  std::fprintf(
-    stderr,
-    "Frame Length %d, Block Length %d, BufferLength %d\n",
-    (int)frameSize,
-    (int)blockSize,
-    (int)bufferSize
-  );
-
+  if (verbose) {
+    std::fprintf(
+      stderr,
+      "Frame Length %d, Block Length %d, BufferLength %d\n",
+      (int)frameSize,
+      (int)blockSize,
+      (int)bufferSize
+    );
+  }
   readPCMBuffer  = new int16[bufferSize];
   writePCMBuffer = new int8[bufferSize];
   writeVolBuffer = new uint8[blockSize];
 }
 
+/**
+ * Destructor
+ */
 PaulaHDREncoder::~PaulaHDREncoder() {
   delete[] readPCMBuffer;
   delete[] writePCMBuffer;
   delete[] writeVolBuffer;
 }
 
+/**
+ * Stream encode
+ */
 uint32 PaulaHDREncoder::encode(PCMInput* input, PaulaHDRFileOutput* output) {
 
   if (!input) {
-    std::fprintf(stderr, "No input stream available\n");
+    if (verbose) {
+      std::fprintf(stderr, "No input stream available\n");
+    }
     return 0;
   }
 
   if (!output) {
-    std::fprintf(stderr, "No output stream available\n");
+    if (verbose) {
+      std::fprintf(stderr, "No output stream available\n");
+    }
     return 0;
   }
 
   if (input->channels() != 1) {
-    std::fprintf(stderr, "Only mono input data is supported\n");
+    if (verbose) {
+      std::fprintf(stderr, "Only mono input data is supported\n");
+    }
     return 0;
   }
 
@@ -63,16 +73,22 @@ uint32 PaulaHDREncoder::encode(PCMInput* input, PaulaHDRFileOutput* output) {
     frameBlock  = 0;
 
   do {
-    std::fprintf(stderr, "\nEncoding Frameblock %u...\n", frameBlock++);
+    if (verbose) {
+      std::fprintf(stderr, "\nEncoding Frameblock %u...\n", frameBlock++);
+    }
+
     lastRead = encodeBlock(input);
     samplesRead += lastRead;
 
-    std::fprintf(stderr, "\tTotal %u entries for %u samples...\n\t", writeVolBufferOffset, lastRead);
-
-    for (uint32 i=0; i < writeVolBufferOffset; i++) {
-      std::fprintf(stderr, "%3u ", writeVolBuffer[i]);
+    if (verbose) {
+      std::fprintf(stderr, "\tTotal %u entries for %u samples...\n\t", writeVolBufferOffset, lastRead);
+      for (uint32 i=0; i < writeVolBufferOffset; i++) {
+        std::fprintf(stderr, "%3u ", writeVolBuffer[i]);
+      }
+      std::fprintf(stderr, "\n");
     }
-    std::fprintf(stderr, "\n");
+
+    deltaEncodeBuffer();
 
     output->writeBlock(
       writeVolBuffer,
@@ -82,22 +98,26 @@ uint32 PaulaHDREncoder::encode(PCMInput* input, PaulaHDRFileOutput* output) {
     );
 
   } while (lastRead == bufferSize);
-
-  std::fprintf(stderr, "\nTotal Samples: %u\n", samplesRead);
-
+  if (verbose) {
+    std::fprintf(stderr, "\nTotal Samples: %u\n", samplesRead);
+  }
   return samplesRead;
 }
 
+/**
+ * Encode an input block. This will read frameSize * blockSize samples and analyse the peak volume for each frame.
+ * The volume data is RLE encoded.
+ */
 uint32 PaulaHDREncoder::encodeBlock(PCMInput* input) {
   uint32 totSamples = input->read(readPCMBuffer, bufferSize);
   uint32 result     = totSamples;
   if (totSamples > 0) {
-
-    std::fprintf(
-      stderr,
-      "\tPeak 14-bit | Ideal Scale | Volume | Actual Scale | Peak 8-bit | Replay 14-bit\n"
-    );
-
+    if (verbose) {
+      std::fprintf(
+        stderr,
+        "\tPeak 14-bit | Ideal Scale | Volume | Actual Scale | Peak 8-bit | Replay 14-bit\n"
+      );
+    }
     // Reset all our buffers
     readPCMBufferOffset  = 0;
     writePCMBufferOffset = 0;
@@ -142,12 +162,14 @@ uint32 PaulaHDREncoder::encodeBlock(PCMInput* input) {
   return result;
 }
 
+/**
+ * Encode a single frame of data.
+ */
 uint32 PaulaHDREncoder::encodeFrame(uint32 length) {
 
   int16* input    = readPCMBuffer  + readPCMBufferOffset;
   int8*  output   = writePCMBuffer + writePCMBufferOffset;
   uint32 num      = length;
-
 
   // Identify the largest absolute 14-bit value
   int16  max14bit = 0;
@@ -170,19 +192,20 @@ uint32 PaulaHDREncoder::encodeFrame(uint32 length) {
     // expected Paula AUDxVOL value we will need to replay the frame correctly.
 
     bestNormaliser = defaultVol[normaliserIndex++];
-    int max8bit    = (int)(max14bit * bestNormaliser) >> 6;
+    if (verbose) {
+      int max8bit    = (int)(max14bit * bestNormaliser) >> 6;
 
-    std::fprintf(
-      stderr,
-      "\t%11d | %11.6f | %6d |  %11.6f | %10d | %13d\n",
-      (int)max14bit,
-      idealNormaliser,
-      normaliserIndex,
-      bestNormaliser,
-      max8bit,
-      (int)((max8bit << 6) / bestNormaliser)
-    );
-
+      std::fprintf(
+        stderr,
+        "\t%11d | %11.6f | %6d |  %11.6f | %10d | %13d\n",
+        (int)max14bit,
+        idealNormaliser,
+        normaliserIndex,
+        bestNormaliser,
+        max8bit,
+        (int)((max8bit << 6) / bestNormaliser)
+      );
+    }
     // Reset the offsets for encoding the input
     num   = length;
     input = readPCMBuffer + readPCMBufferOffset;
@@ -197,11 +220,24 @@ uint32 PaulaHDREncoder::encodeFrame(uint32 length) {
     readPCMBufferOffset  += length;
     writePCMBufferOffset += length;
     return normaliserIndex;
-
   }
   // Increment the read buffer position only as a silence frame doesn't use any output PCM space
   readPCMBufferOffset  += length;
   return 0;
+}
+
+/**
+ * Transform the output 8-bit PCM buffer into a set delta values. We may choose to encode these.
+ */
+void PaulaHDREncoder::deltaEncodeBuffer() {
+  int8*  buffer   = writePCMBuffer;
+  int8   last     = 0;
+  uint32 length   = writePCMBufferOffset;
+  while (length--) {
+    int8 current = *buffer;
+    *buffer++ = current - last;
+    last = current;
+  }
 }
 
 const float PaulaHDREncoder::defaultVol[64] = {
