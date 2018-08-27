@@ -9,6 +9,7 @@
  * byte encodes the 6-bit AM channel volume and the remaining N bytes encode the gain-adjusted 8-bit versions of the the
  * input.
  */
+
 size_t encode_frame(const int16* input, int8* output, size_t framelen) {
   const int16* source   = input;
   size_t       num      = framelen;
@@ -24,11 +25,13 @@ size_t encode_frame(const int16* input, int8* output, size_t framelen) {
   /* If we comnputed a non-zero maximum 14-bit sample, work out the best AM volume to use and convert the frame */
   if (max16bit) {
     float32 ideal_factor = 32768.0 / (float32)max16bit;
+
     float32 best_factor  = 0;
-    int     index        = 0;
-    while (ideal_factor < amp_factors[index]) {
-      index++;
+    int     amp_index    = 0;
+    while (ideal_factor < amp_factors[amp_index]) {
+      amp_index++;
     }
+
 
     best_factor = amp_factors[index];
     int max8bit = (int)(max16bit * best_factor) >> 8;
@@ -37,20 +40,20 @@ size_t encode_frame(const int16* input, int8* output, size_t framelen) {
       "\tMax 16-bit:%4d (ideal %0.6f) AUDxVOL:%d (scale: %0.6f), 8-bit:%d, replay: %d\n",
       (int)max16bit,
       ideal_factor,
-      index + 1,
+      amp_index + 1,
       best_factor,
       max8bit,
       (int)((max8bit << 8) / best_factor)
     );
 
     source    = input;
-    num       = framelen;
+    count     = frame_len;
 
     /* Write the AM volume value. This is in the range 1-64 for Paula */
-    *output++ = index + 1;
+    *output++ = amp_index + 1;
 
     /* Compute and write the maximised 8-bit samples */
-    while (num--) {
+    while (count--) {
       /* Calculate the next AM maximised 8-bit sample value */
       int val = (int)(*source++ * best_factor) >> 8;
 
@@ -58,7 +61,7 @@ size_t encode_frame(const int16* input, int8* output, size_t framelen) {
       *output++ = val < -127 ? -127 : val > 127 ? 127 : val;
     }
 
-    return framelen + 1;
+    return frame_len + 1;
   } else {
     /* If we got a zero maximum 14-bit sample, record a single zero byte for the whole silent frame */
     puts("\tEncoded silent frame.");
