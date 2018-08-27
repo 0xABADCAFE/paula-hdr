@@ -8,43 +8,42 @@
  * The input is a frame of N 16-bit signed PCM samples. The output is a frame of N-1 signed 8-bit bytes where the first
  * byte encodes the 6-bit AM channel volume and the remaining N bytes encode the gain-adjusted 8-bit versions of the the
  * input.
- *
- * The process treats the 16-bit source data as 14-bit replayable data by discarding the lowest 2 bits. The largest
- * 14-bit value is found and that is then used to work out the ideal Paula channel volume for this frame and what to
- * multiply each sample by before converting to 8-bit.
  */
-size_t encode_frame(const int16* input, int8* output, size_t frame_len) {
-  const int16* source    = input;
-  size_t       count     = frame_len;
-  int16        max_14bit = 0;
+
+size_t encode_frame(const int16* input, int8* output, size_t framelen) {
+  const int16* source   = input;
+  size_t       num      = framelen;
+  int          max16bit = 0;
 
   /* Identify the loudest 14-bit sample value */
-  while (count--) {
-    int16 cur_14bit = (*source++) >> 2;
-    int16 abs_14bit = cur_14bit < 0         ? -cur_14bit : cur_14bit;
-    max_14bit       = abs_14bit > max_14bit ?  abs_14bit : max_14bit;
+  while (num--) {
+    int sample16bit = *source++;
+    int abs16bit    = sample16bit < 0        ? -sample16bit : sample16bit;
+    max16bit        = abs16bit    > max16bit ?  abs16bit    : max16bit;
   }
 
   /* If we comnputed a non-zero maximum 14-bit sample, work out the best AM volume to use and convert the frame */
-  if (max_14bit) {
-    float32 ideal_factor = 8192.0 / (float32)max_14bit;
+  if (max16bit) {
+    float32 ideal_factor = 32768.0 / (float32)max16bit;
+
     float32 best_factor  = 0;
     int     amp_index    = 0;
     while (ideal_factor < amp_factors[amp_index]) {
       amp_index++;
     }
 
-    best_factor = amp_factors[amp_index];
-    int max_8bit = (int)(max_14bit * best_factor) >> 6;
+
+    best_factor = amp_factors[index];
+    int max8bit = (int)(max16bit * best_factor) >> 8;
 
     printf(
-      "\tMax 14-bit:%4d (ideal %0.6f) AUDxVOL:%d (scale: %0.6f), 8-bit:%d, replay: %d\n",
-      (int)max_14bit,
+      "\tMax 16-bit:%4d (ideal %0.6f) AUDxVOL:%d (scale: %0.6f), 8-bit:%d, replay: %d\n",
+      (int)max16bit,
       ideal_factor,
       amp_index + 1,
       best_factor,
-      max_8bit,
-      (int)((max_8bit << 6) / best_factor)
+      max8bit,
+      (int)((max8bit << 8) / best_factor)
     );
 
     source    = input;
@@ -56,7 +55,7 @@ size_t encode_frame(const int16* input, int8* output, size_t frame_len) {
     /* Compute and write the maximised 8-bit samples */
     while (count--) {
       /* Calculate the next AM maximised 8-bit sample value */
-      int val = (int)((float32)(*source++ >> 2) * best_factor) >> 6;
+      int val = (int)(*source++ * best_factor) >> 8;
 
       /* Perform some range clamping. Although -128 is valid, it results in underflow in decoding */
       *output++ = val < -127 ? -127 : val > 127 ? 127 : val;

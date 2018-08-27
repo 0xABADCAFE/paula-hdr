@@ -1,0 +1,13 @@
+# Project: Paula HDR Encoder
+
+# Target
+BIN      = bin/encoder2_x64
+
+# Compiler settings
+CXXFLAGS = -O3 -Wall -W -m64 -march=native -fomit-frame-pointer
+
+# Makefile settings
+ARCH     = x64_linux
+MEXT     = $(ARCH)
+
+include encoder.make
