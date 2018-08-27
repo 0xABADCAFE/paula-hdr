@@ -115,7 +115,7 @@ uint32 PaulaHDREncoder::encodeBlock(PCMInput* input) {
     if (verbose) {
       std::fprintf(
         stderr,
-        "\tPeak 14-bit | Ideal Scale | Volume | Actual Scale | Peak 8-bit | Replay 14-bit\n"
+        "\tPeak 16-bit | Ideal Scale | Volume | Actual Scale | Peak 8-bit | Replay 16-bit\n"
       );
     }
     // Reset all our buffers
@@ -171,16 +171,16 @@ uint32 PaulaHDREncoder::encodeFrame(uint32 length) {
   int8*  output   = writePCMBuffer + writePCMBufferOffset;
   uint32 num      = length;
 
-  // Identify the largest absolute 14-bit value
-  int16  max14bit = 0;
+  // Identify the largest absolute 16-bit value
+  int max16bit = 0;
   while (num--) {
-    int16 sample14bit = (*input++) >> 2;
-    int16 abs14bit    = sample14bit < 0        ? -sample14bit : sample14bit;
-    max14bit          = abs14bit    > max14bit ?  abs14bit    : max14bit;
+    int sample16bit = *input++;
+    int abs16bit    = sample16bit < 0        ? -sample16bit : sample16bit;
+    max16bit        = abs16bit    > max16bit ?  abs16bit    : max16bit;
   }
 
-  if (max14bit) {
-    float32 idealNormaliser = 8192.0 / (float32)max14bit;
+  if (max16bit) {
+    float32 idealNormaliser = 32768.0 / (float32)max16bit;
     float32 bestNormaliser  = 0;
     int     normaliserIndex = 0;
     while (idealNormaliser < defaultVol[normaliserIndex]) {
@@ -193,24 +193,24 @@ uint32 PaulaHDREncoder::encodeFrame(uint32 length) {
 
     bestNormaliser = defaultVol[normaliserIndex++];
     if (verbose) {
-      int max8bit    = (int)(max14bit * bestNormaliser) >> 6;
+      int max8bit    = (int)(max16bit * bestNormaliser) >> 8;
 
       std::fprintf(
         stderr,
         "\t%11d | %11.6f | %6d |  %11.6f | %10d | %13d\n",
-        (int)max14bit,
+        (int)max16bit,
         idealNormaliser,
         normaliserIndex,
         bestNormaliser,
         max8bit,
-        (int)((max8bit << 6) / bestNormaliser)
+        (int)((max8bit << 8) / bestNormaliser)
       );
     }
     // Reset the offsets for encoding the input
     num   = length;
     input = readPCMBuffer + readPCMBufferOffset;
     while (num--) {
-      int scaled8bit = (int)((float32)(*input++ >> 2) * bestNormaliser) >> 6;
+      int scaled8bit = (int)(*input++ * bestNormaliser) >> 8;
 
       // Perform some range clamping. Although -128 is valid, it results in underflow in decoding
       *output++ = scaled8bit < -127 ? -127 : scaled8bit > 127 ? 127 : scaled8bit;

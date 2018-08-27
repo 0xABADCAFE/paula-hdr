@@ -40,6 +40,8 @@ int main(int argc, const char **argv) {
     } else {
       std::printf("Failed to open source file %s\n", from);
     }
+  } else {
+    std::printf("Missing required source paramter -s\n");
   }
 
   return 0;
