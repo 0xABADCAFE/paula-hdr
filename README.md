@@ -18,7 +18,7 @@ Paula allows for some interesting hardware modulation. One channel can be used a
 
 Where a channel is used as a volume modulator, it reads a 16-bit value from the next position in the DMA buffer and applies it. The carrier channel will read two 8-bit samples in this time. This means that the maxumum modulation rate for volume is only half the maximum rate for sample playback. Since each channel has it's own period control, it is assumed that the modulator channel can be set to rates lower than this. For example, allowing the modulator to run at 1/4, 1/8, 1/16 etc. of the carrier rate.
 
-### Compadiing
+### Companding
 The above observations lead to the conclusion that it ought to be possible to define a format in which 16-bit source data is converted to 8-bit using a companding technique where the 16-bit data is scaled by some factor before conversion and that factor is then used to adjust the replay volume.
 
 ## Encoding
